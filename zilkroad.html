@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZILK ROAD — a shielded caravan run</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body {
+    margin: 0; padding: 0;
+    background: #120a1a;
+    color: #fdf3ec;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body { display: flex; align-items: center; justify-content: center; padding: 20px 14px; }
+  .wrap { width: 100%; max-width: 420px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  h1 {
+    font-size: 22px; font-weight: 800; margin: 0; letter-spacing: 1px;
+    background: linear-gradient(90deg,#ffb454,#ff6f9c,#a78bfa);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .stat { text-align: right; }
+  .stat .label { font-size: 10px; color: #b79db0; text-transform: uppercase; letter-spacing: 1px; }
+  .stat .value { font-size: 20px; font-weight: 800; color: #ffb454; line-height: 1; }
+  .subtitle { font-size: 12.5px; color: #c9aec6; margin: 0 0 14px 0; line-height: 1.5; }
+
+  .stage {
+    position: relative;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid #3a2740;
+    background: linear-gradient(180deg, #2a1338 0%, #3d1c3a 35%, #5c2a3a 65%, #7a3a35 100%);
+    height: 480px;
+  }
+  .stars { position: absolute; inset: 0; }
+  .star { position: absolute; width: 2px; height: 2px; background: #fff; border-radius: 50%; opacity: 0.6; }
+
+  .road { position: absolute; left: 8%; right: 8%; top: 0; bottom: 0; display: flex; }
+  .lane { flex: 1; position: relative; border-left: 1px dashed rgba(255,255,255,0.12); }
+  .lane:first-child { border-left: none; }
+
+  .caravan {
+    position: absolute;
+    bottom: 14px;
+    width: 42px; height: 42px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 30px;
+    text-align: center;
+    line-height: 42px;
+    transition: left 140ms ease;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+    z-index: 3;
+  }
+  .item {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .item.silk { box-shadow: 0 0 16px 3px var(--c, #fff); }
+  .item.beam {
+    width: 100%;
+    height: 26px;
+    border-radius: 4px;
+    left: 0; transform: translate(0,-50%);
+    background: linear-gradient(90deg, transparent, rgba(255,80,90,0.75), transparent);
+  }
+
+  .hitline { position: absolute; left: 0; right: 0; bottom: 40px; height: 2px; background: transparent; }
+
+  .overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px;
+    background: rgba(18,10,26,0.86);
+    text-align: center;
+    z-index: 5;
+  }
+  .lede { font-size: 13.5px; color: #e6d7e3; line-height: 1.7; margin: 0 0 16px 0; }
+  .lede b { color: #ffd9a0; }
+  .rule { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: #e6d7e3; margin-bottom: 8px; }
+  .swatch { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; }
+  .btn {
+    padding: 13px 22px;
+    background: linear-gradient(90deg,#ffb454,#ff6f9c);
+    border: none; color: #1a0f12; font-family: inherit;
+    font-size: 14px; font-weight: 800; letter-spacing: 0.3px;
+    border-radius: 10px; cursor: pointer; margin-top: 6px;
+  }
+  .btn:active { transform: scale(0.97); }
+
+  .avatar-wrap { display: flex; justify-content: center; margin-bottom: 14px; }
+  #sealCanvas { image-rendering: pixelated; border-radius: 14px; border: 1px solid #3a2740; }
+
+  .controls { display: flex; gap: 10px; margin-top: 12px; }
+  .ctrlbtn {
+    flex: 1;
+    padding: 14px;
+    background: #1e1226;
+    border: 1px solid #3a2740;
+    color: #fdf3ec;
+    border-radius: 10px;
+    font-size: 18px;
+    text-align: center;
+    cursor: pointer;
+  }
+  .ctrlbtn:active { background: #2a1a34; }
+
+  .footer { margin-top: 14px; font-size: 11px; color: #8a7488; text-align: center; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <h1>ZILK ROAD</h1>
+    <div class="stat"><div class="label">silk</div><div class="value" id="scoreVal">0</div></div>
+  </div>
+  <p class="subtitle">every shielded transfer is a road &middot; move your caravan, collect silk, stay unseen at the checkpoints</p>
+
+  <div class="stage" id="stage">
+    <div class="stars" id="stars"></div>
+    <div class="road" id="road">
+      <div class="lane" data-lane="0"></div>
+      <div class="lane" data-lane="1"></div>
+      <div class="lane" data-lane="2"></div>
+    </div>
+    <div class="caravan" id="caravan">🐫</div>
+
+    <div class="overlay" id="overlay-intro">
+      <p class="lede">Your caravan carries value nobody should see mid-journey.<br>
+      <b>Collect the silk.</b> When a checkpoint beam sweeps your lane, <b>move out of it.</b></p>
+      <div class="rule"><div class="swatch" style="background:#ffd9a0;"></div> silk — +10, safe to collect</div>
+      <div class="rule"><div class="swatch" style="background:#ff5f6a; border-radius:4px; width:22px; height:12px;"></div> checkpoint beam — get out of the lane</div>
+      <button class="btn" id="startBtn">start the run</button>
+    </div>
+
+    <div class="overlay hidden" id="overlay-end">
+      <div class="avatar-wrap"><canvas id="sealCanvas" width="180" height="180"></canvas></div>
+      <p class="lede">passage complete<br><b id="finalScore"></b></p>
+      <button class="btn" id="retryBtn">run again</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="ctrlbtn" id="leftBtn">◀</div>
+    <div class="ctrlbtn" id="rightBtn">▶</div>
+  </div>
+
+  <div class="footer">fan project, unaffiliated with any protocol team</div>
+</div>
+
+<script>
+(function(){
+  var LANES = 3;
+  var GAME_MS = 32000;
+  var SPAWN_MS = 780;
+  var FALL_MS = 2600;
+  var HIT_ZONE = 0.86;
+  var HIT_TOL = 0.09;
+  var SILK_COLORS = ['#ffd9a0', '#ffb454', '#7fe0d6', '#a78bfa', '#ff9fc0'];
+
+  var laneIndex = 1;
+  var score = 0;
+  var running = false;
+  var spawnHandle = null;
+  var endHandle = null;
+  var items = [];
+  var itemId = 0;
+
+  var stage = document.getElementById('stage');
+  var road = document.getElementById('road');
+  var caravan = document.getElementById('caravan');
+  var scoreVal = document.getElementById('scoreVal');
+  var starsEl = document.getElementById('stars');
+
+  function buildStars(){
+    starsEl.innerHTML = '';
+    for (var i = 0; i < 40; i++){
+      var s = document.createElement('div');
+      s.className = 'star';
+      s.style.left = Math.random() * 100 + '%';
+      s.style.top = Math.random() * 55 + '%';
+      s.style.opacity = (0.2 + Math.random() * 0.6).toFixed(2);
+      starsEl.appendChild(s);
+    }
+  }
+  buildStars();
+
+  function laneCenterPct(i){
+    return (i + 0.5) / LANES * 100;
+  }
+
+  function updateCaravanPos(){
+    caravan.style.left = laneCenterPct(laneIndex) + '%';
+  }
+
+  function moveLane(delta){
+    laneIndex = Math.max(0, Math.min(LANES - 1, laneIndex + delta));
+    updateCaravanPos();
+  }
+
+  document.getElementById('leftBtn').addEventListener('click', function(){ moveLane(-1); });
+  document.getElementById('rightBtn').addEventListener('click', function(){ moveLane(1); });
+  document.addEventListener('keydown', function(e){
+    if (!running) return;
+    if (e.key === 'ArrowLeft') moveLane(-1);
+    if (e.key === 'ArrowRight') moveLane(1);
+  });
+  stage.addEventListener('click', function(e){
+    if (!running) return;
+    var rect = stage.getBoundingClientRect();
+    var x = e.clientX - rect.left;
+    if (x < rect.width / 2) moveLane(-1); else moveLane(1);
+  });
+
+  function spawnItem(){
+    var isBeam = Math.random() < 0.28;
+    var lane = Math.floor(Math.random() * LANES);
+    var el = document.createElement('div');
+    var id = itemId++;
+
+    if (isBeam){
+      el.className = 'item beam';
+      road.children[lane].appendChild(el);
+    } else {
+      el.className = 'item silk';
+      var color = SILK_COLORS[Math.floor(Math.random() * SILK_COLORS.length)];
+      el.style.background = color;
+      el.style.setProperty('--c', color);
+      el.textContent = '';
+      road.children[lane].appendChild(el);
+    }
+
+    el.style.top = '-5%';
+    var startTime = performance.now();
+    items.push({ id: id, el: el, lane: lane, isBeam: isBeam, start: startTime, resolved: false });
+  }
+
+  function tick(now){
+    if (!running) return;
+    for (var i = items.length - 1; i >= 0; i--){
+      var it = items[i];
+      var t = (now - it.start) / FALL_MS;
+      if (t >= 1.05){
+        if (it.el.parentNode) it.el.parentNode.removeChild(it.el);
+        items.splice(i, 1);
+        continue;
+      }
+      var pct = t * 100;
+      it.el.style.top = pct + '%';
+
+      if (!it.resolved && Math.abs(t - HIT_ZONE) < HIT_TOL){
+        if (it.lane === laneIndex){
+          it.resolved = true;
+          if (it.isBeam){
+            score = Math.max(0, score - 8);
+            flashStage('rgba(255,80,90,0.35)');
+          } else {
+            score += 10;
+            flashStage('rgba(255,217,160,0.18)');
+            it.el.style.transition = 'transform 150ms ease, opacity 150ms ease';
+            it.el.style.transform = 'translate(-50%,-50%) scale(1.6)';
+            it.el.style.opacity = '0';
+          }
+          scoreVal.textContent = score;
+        }
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function flashStage(color){
+    stage.style.boxShadow = 'inset 0 0 60px 10px ' + color;
+    setTimeout(function(){ stage.style.boxShadow = 'none'; }, 160);
+  }
+
+  function clearItems(){
+    items.forEach(function(it){ if (it.el.parentNode) it.el.parentNode.removeChild(it.el); });
+    items = [];
+  }
+
+  function startGame(){
+    score = 0;
+    laneIndex = 1;
+    scoreVal.textContent = '0';
+    clearItems();
+    updateCaravanPos();
+    document.getElementById('overlay-intro').classList.add('hidden');
+    document.getElementById('overlay-end').classList.add('hidden');
+    running = true;
+    spawnHandle = setInterval(spawnItem, SPAWN_MS);
+    endHandle = setTimeout(endGame, GAME_MS);
+    requestAnimationFrame(tick);
+  }
+
+  function endGame(){
+    running = false;
+    clearInterval(spawnHandle);
+    clearTimeout(endHandle);
+    clearItems();
+    document.getElementById('finalScore').textContent = score + ' silk carried';
+    document.getElementById('overlay-end').classList.remove('hidden');
+    drawSeal();
+  }
+
+  document.getElementById('startBtn').addEventListener('click', startGame);
+  document.getElementById('retryBtn').addEventListener('click', startGame);
+
+  function drawSeal(){
+    var canvas = document.getElementById('sealCanvas');
+    var ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    var size = 8;
+    var scale = canvas.width / size;
+    var half = size / 2;
+    ctx.fillStyle = '#120a1a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    var map = [];
+    for (var y = 0; y < size; y++){
+      map[y] = [];
+      for (var x = 0; x < half; x++){
+        var draw = Math.random() > 0.4;
+        map[y][x] = draw ? SILK_COLORS[Math.floor(Math.random() * SILK_COLORS.length)] : null;
+      }
+    }
+    for (var y = 0; y < size; y++){
+      for (var x = 0; x < size; x++){
+        var srcX = x < half ? x : (size - 1 - x);
+        var color = map[y][srcX];
+        if (color){
+          ctx.fillStyle = color;
+          ctx.fillRect(x * scale, y * scale, scale, scale);
+        }
+      }
+    }
+  }
+})();
+</script>
+</body>
+</html>
